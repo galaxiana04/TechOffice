@@ -19,6 +19,7 @@ use App\Services\TelegramService;
 use App\Models\KomatSupplier;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Progressreport;
 
 class KomatProcessController extends Controller
 {
@@ -1232,7 +1233,7 @@ class KomatProcessController extends Controller
             ->select('komat_process.*')
             ->orderBy('komat_supplier.name', 'asc')
             ->orderBy('komat_requirement.name', 'asc')
-            ->groupBy('komat_process.id', 'komat_process.komat_name', 'komat_process.komat_id', 'komat_process.created_at', 'komat_process.updated_at')
+            ->groupBy('komat_process.id', 'komat_process.komat_name', 'komat_process.komat_id', 'komat_process.created_at', 'komat_process.updated_at', 'komat_supplier.name', 'komat_requirement.name')
             ->get();
 
 
@@ -1281,5 +1282,13 @@ class KomatProcessController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+    public function report($id)
+    {
+        // 1. Ambil data dari database berdasarkan ID
+        $report = Progressreport::findOrFail($id);
+
+        // 2. Kirim ke view dengan nama 'report'
+        return view('komatprocesshistory.report', compact('report'));
     }
 }

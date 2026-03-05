@@ -967,7 +967,7 @@ class NewMemoController extends Controller
                         // untuk combine
                         $data = [
                             'new_memo_id' => $id,
-                            'pic' =>  $operator,
+                            'pic' => $operator,
                             'author' => $newmemofeedback->author,
                             'sudahdibaca' => $newmemofeedback->sudahdibaca,
                             'hasilreview' => $newmemofeedback->hasilreview,
@@ -1008,19 +1008,23 @@ class NewMemoController extends Controller
 
                         if ($operator === "Product Engineering") {
                             $sm_level = "Senior Manager Engineering";
-                        } elseif (in_array($operator, [
-                            'Desain Mekanik & Interior',
-                            'Desain Bogie & Wagon',
-                            'Desain Carbody',
-                            'Desain Elektrik'
-                        ])) {
+                        } elseif (
+                            in_array($operator, [
+                                'Desain Mekanik & Interior',
+                                'Desain Bogie & Wagon',
+                                'Desain Carbody',
+                                'Desain Elektrik'
+                            ])
+                        ) {
                             $sm_level = "Senior Manager Desain";
-                        } elseif (in_array($operator, [
-                            'Preparation & Support',
-                            'Welding Technology',
-                            'Shop Drawing',
-                            'Teknologi Proses'
-                        ])) {
+                        } elseif (
+                            in_array($operator, [
+                                'Preparation & Support',
+                                'Welding Technology',
+                                'Shop Drawing',
+                                'Teknologi Proses'
+                            ])
+                        ) {
                             $sm_level = "Senior Manager Teknologi Produksi";
                         }
 
@@ -1405,7 +1409,7 @@ class NewMemoController extends Controller
             // Validasi jika konfigurasi adalah series
             $configuration = NewMemo::configurationrule($document->operator);
             if ($configuration == "series" && !$request->hasFile('file')) {
-                return back()->with('error',  'File wajib diupload untuk konfigurasi series. Jika memang tidak terlibat, mohon tambahkan catatan pada review bahwa komponen/komat/BOM tersebut bukan tanggung jawab unit Anda.');
+                return back()->with('error', 'File wajib diupload untuk konfigurasi series. Jika memang tidak terlibat, mohon tambahkan catatan pada review bahwa komponen/komat/BOM tersebut bukan tanggung jawab unit Anda.');
             }
 
             // Update user information
@@ -1455,7 +1459,8 @@ class NewMemoController extends Controller
 
                     $newmemoFile = new CollectFile();
                     $newmemoFile->filename = $newFilename;
-                    $newmemoFile->link = str_replace('public/', '', $path);;
+                    $newmemoFile->link = str_replace('public/', '', $path);
+                    ;
                     $newmemoFile->collectable_id = $feedback->id;
                     $newmemoFile->collectable_type = NewMemoFeedback::class;
                     $newmemoFile->save();
@@ -1635,7 +1640,37 @@ class NewMemoController extends Controller
     {
         // Ambil dokumen dengan status "Tertutup"
         $documents = NewMemo::with(['feedbacks', 'komats', 'timelines'])
-            ->where('documentstatus', "Tertutup")->orderBy('created_at', 'desc');
+            ->where('documentstatus', "Tertutup")
+            ->orderBy('created_at', 'desc');
+
+        // ✅ Filter berdasarkan operator (dari tab)
+        if ($request->filled('operator')) {
+            if ($request->operator === 'unbound') {
+                $knownOperators = [
+                    'Product Engineering',
+                    'Desain Elektrik',
+                    'Desain Carbody',
+                    'Desain Mekanik & Interior',
+                    'Shop Drawing',
+                    'Teknologi Proses',
+                    'Desain Bogie & Wagon',
+                    'Preparation & Support',
+                    'Welding Technology',
+                ];
+                $documents->where(function ($q) use ($knownOperators) {
+                    $q->whereNull('operator')
+                        ->orWhere('operator', '')
+                        ->orWhereNotIn('operator', $knownOperators);
+                });
+            } else {
+                $documents->where('operator', $request->operator);
+            }
+        }
+
+        // ✅ Filter berdasarkan project
+        if ($request->filled('project')) {
+            $documents->where('proyek_type_id', $request->project);
+        }
 
         if ($request->ajax()) {
             return DataTables::of($documents)
@@ -1651,7 +1686,6 @@ class NewMemoController extends Controller
                     $authuser = auth()->user();
                     $button = '';
 
-                    // Tombol untuk mengubah status dokumen
                     if ($authuser->rule == $document->operator || $authuser->rule == "superuser") {
                         $button .= '<button type="button" class="btn document-status-button document-status-button-' . ($document->documentstatus == 'Terbuka' ? 'open' : 'closed') . ' btn-sm ' . ($document->documentstatus == 'Terbuka' ? 'btn-danger' : 'btn-success') . '" title="' . $document->documentstatus . '" onclick="toggleDocumentStatus(this)" data-document-status="' . $document->documentstatus . '" data-document-id="' . $document->id . '">';
                         $button .= '<i class="' . ($document->documentstatus == 'Terbuka' ? 'fas fa-times-circle' : 'fas fa-check-circle') . '"></i>';
@@ -1662,36 +1696,24 @@ class NewMemoController extends Controller
                         $button .= '<span>' . $document->documentstatus . '</span></button>';
                     }
 
-                    // Tombol detail
                     $button .= '<a class="btn btn-primary btn-sm" href="' . route('new-memo.show', ['memoId' => $document->id, 'rule' => $authuser->rule]) . '"><i class="fas fa-folder"></i> Detail</a>';
 
-                    // Tombol hapus untuk superuser
                     if ($authuser->rule == "superuser") {
                         $button .= '<button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete(\'' . $document->id . '\')"><i class="fas fa-eraser"></i> Delete</button>';
                     }
 
-                    // Tombol detail
                     $button .= '<a class="btn btn-warning btn-sm" href="' . route('new-memo.roadmap', ['memoId' => $document->id]) . '"><i class="fas fa-map"></i> Roadmap </a>';
-
-                    // Tombol detail
                     $button .= '<a class="btn bg-maroon btn-sm" href="' . route('new-memo.timelinetracking', ['memoId' => $document->id]) . '"><i class="fas fa-flag"></i> Milestone </a>';
-
-
-                    // Tombol detail
                     $button .= '<a class="btn btn-default bg-teal btn-sm" href="' . route('new-memo.downloadfilesfromlastfeedback', ['memoId' => $document->id]) . '"><i class="fas fa-download"></i> Last File</a>';
 
                     $document = $document->detailonedocument();
-                    // Button with verification status display
                     if ($document->verification_status) {
                         $button .= '<button type="button" class="btn btn-success btn-sm document-status-button document-status-button-closed" disabled><i class="fas fa-check-circle"></i> Verified</button>';
                     } else {
                         $button .= '<button type="button" class="btn btn-danger btn-sm document-status-button document-status-button-open" onclick="toggleDocumentStatus(this)" data-document-status="' . $document->documentstatus . '" data-document-id="' . $document->id . '">';
                         $button .= '<i class="' . ($document->documentstatus == 'Terbuka' ? 'fas fa-times-circle' : 'fas fa-check-circle') . '"></i>';
-                        $button .= '<span>' . 'Unverified' . '</span></button>';
+                        $button .= '<span>Unverified</span></button>';
                     }
-
-
-
 
                     return $button;
                 })
@@ -1699,10 +1721,25 @@ class NewMemoController extends Controller
                 ->make(true);
         }
 
-        // Jika bukan AJAX, kembalikan tampilan
-        return view('newmemo.index.indexyajra');
-    }
+        // Kirim units dan listproject ke view (sama seperti indexterbuka)
+        $units = Cache::remember('units', 180, function () {
+            return Unit::where('is_technology_division', 1)->get();
+        });
+        foreach ($units as $key => $unit) {
+            if (str_contains($unit->name, 'Manager') && !str_contains($unit->name, 'Senior Manager')) {
+                unset($units[$key]);
+            } else {
+                $unitname = $this->singkatanUnit($unit->name);
+                $unit->singkatan = str_replace('&', 'AND', $unitname);
+            }
+        }
 
+        $listproject = Cache::remember('listproject', 180, function () {
+            return ProjectType::all();
+        });
+
+        return view('newmemo.index.indexyajra', compact('units', 'listproject'));
+    }
 
     public function unfinishedjobticket($selectedUnits = ['Quality Engineering', 'Mechanical Engineering System'])
     {

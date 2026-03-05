@@ -139,6 +139,9 @@ Route::middleware('auth')->group(function () {
             ->name('komatprocesshistory.addMTPRFeedback');
         Route::post('/add-requirement', [KomatProcessController::class, 'addRequirement'])->name('komatprocesshistory.addRequirement');
         Route::post('/referencerelation', [KomatProcessController::class, 'referencerelation'])->name('komatprocesshistory.referencerelation');
+        Route::get('/show/{id}/report/{rule}', [KomatProcessController::class, 'report'])
+            ->name('komatprocesshistory.report');
+        //Route::get('/komat-report/{id}', [KomatProcessController::class, 'report'])->name('komat.report');
     });
     // Rute untuk inventories
     Route::prefix('inventories')->group(function () {
@@ -273,7 +276,7 @@ Route::middleware('auth')->group(function () {
     // Monitoring User
     Route::get('/monitoring-user', [MonitoringUserController::class, 'index'])->name('monitoring.user');
     Route::get('/monitoring-user/{id}', [MonitoringUserController::class, 'show']);
-    
+
 
     //Ruang Rapat
     Route::prefix('events')->group(function () {
